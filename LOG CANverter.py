@@ -49,7 +49,7 @@ inputfile.close()
 
 with open (logfilename, "r",encoding="utf8") as inputfile:
 
-    with open(tempfile, "w") as logfile:
+    with open(tempfile, "w", newline='') as logfile:
         writecsv = csv.writer(logfile, quoting=csv.QUOTE_ALL, delimiter=",")
         db = cantools.database.load_file(dbcfilename)
         raw_dbc = db.messages
@@ -164,7 +164,7 @@ with open (logfilename, "r",encoding="utf8") as inputfile:
 inputfile.close()
 
 with open(tempfile, "r") as inputfile:
-    with open(outputfile, "w") as logfile:
+    with open(outputfile, "w", newline='') as logfile:
         reader = csv.reader(inputfile, delimiter = ',', quotechar = '"')
         writer = csv.writer(logfile,quoting=csv.QUOTE_ALL, delimiter=",")
         for row in tqdm(reader,desc = "Compressing", total = outputlinecount, unit = "Rows"):
