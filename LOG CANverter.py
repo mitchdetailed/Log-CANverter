@@ -97,31 +97,49 @@ with open (logfilename, "r",encoding="utf8") as inputfile:
             aggregated_values_list.append('')
             signalactive_list.append(False)
 
-        csv_reader = csv.reader(inputfile, delimiter=' ')
         writecsv2 = csv.writer(logfile, quoting=csv.QUOTE_ALL)
-
-        for row in tqdm(csv_reader,desc= "Lines", total = numlines,unit = " Lines"):
-            timestamp = float(str(row[0]).strip("("")"))
-            data = row[2].split('#')
-            arbitration_id = int(data[0],16)
-            data = bytearray.fromhex(data[1])
-
-            if validate_decode() == True:
-                signals_bool = 1
-                if starttime == 0:
-                    starttime = timestamp
+        linePattern = re.compile(r"\((\d+.\d+)\)\s+[^\s]+\s+([0-9A-F#]{3}|[0-9A-F#]{8})#([0-9A-F]+)")
+        for row in tqdm(inputfile,desc= "Lines", total = numlines,unit = " Lines"):
+            try:
+                tokens = linePattern.search(row).groups()
+                timestamp = float(tokens[0])
+                arbitration_id = int(tokens[1],16)
+                data = bytearray.fromhex(tokens[2])
+                if validate_decode() == True:
+                    signals_bool = 1
+                    if starttime == 0:
+                        starttime = timestamp
+                        lastwritetime = timestamp
+                        timestamp = 0
+                    else:
+                        timestamp = (timestamp - starttime)
+                    decoded_msg = db.decode_message(arbitration_id, data, decode_choices=False) 
+                    for (key, value) in decoded_msg.items():
+                        if key in signalList:
+                            indexval = signalList.index(key)
+                            if signalMin[indexval] == None or value > signalMin[indexval] and signalMax[indexval] == None or value < signalMax[indexval]:
+                                if dps_list[indexval] != None:
+                                    try:
+                                        value = round(float(value),dps_list[indexval])
+                                        try:
+                                            if int(value) == float(value):
+                                                value = int(value)
+                                        except:
+                                            pass
+                                    except:
+                                        pass
+                                values_list[indexval].append(value)
+                if (timestamp - lastwritetime >= (1/frequency)) and (signals_bool == 1) :
                     lastwritetime = timestamp
-                    timestamp = 0
-                else:
-                    timestamp = (timestamp - starttime)
-                decoded_msg = db.decode_message(arbitration_id, data, decode_choices=False) 
-                for (key, value) in decoded_msg.items():
-                    if key in signalList:
-                        indexval = signalList.index(key)
-                        if signalMin[indexval] == None or value > signalMin[indexval] and signalMax[indexval] == None or value < signalMax[indexval]:
-                            if dps_list[indexval] != None:
+                    for i, items in enumerate(values_list):
+                        if len(values_list[i]) > 0:
+                            try:
+                                value = sum(values_list[i])/len(values_list[i])
+                            except:
+                                value = values_list[i][-1]
+                            if dps_list[i] != 'None':
                                 try:
-                                    value = round(float(value),dps_list[indexval])
+                                    value = round(float(value),dps_list[i])
                                     try:
                                         if int(value) == float(value):
                                             value = int(value)
@@ -129,37 +147,19 @@ with open (logfilename, "r",encoding="utf8") as inputfile:
                                         pass
                                 except:
                                     pass
-                            values_list[indexval].append(value)
-            if (timestamp - lastwritetime >= (1/frequency)) and (signals_bool == 1) :
-                lastwritetime = timestamp
-                for i, items in enumerate(values_list):
-                    if len(values_list[i]) > 0:
-                        try:
-                            value = sum(values_list[i])/len(values_list[i])
-                        except:
-                            value = values_list[i][-1]
-                        if dps_list[i] != 'None':
-                            try:
-                                value = round(float(value),dps_list[i])
-                                try:
-                                    if int(value) == float(value):
-                                        value = int(value)
-                                except:
-                                    pass
-                            except:
-                                pass
-                        aggregated_values_list[i] = value
-                aggregated_values_list[0] = str("%0.3f" %(lastwritetime-starttime))
-                writecsv.writerow(aggregated_values_list)
-                outputlinecount += 1
-                signals_bool = 0
+                            aggregated_values_list[i] = value
+                    aggregated_values_list[0] = str("%0.3f" %(lastwritetime-starttime))
+                    writecsv.writerow(aggregated_values_list)
+                    outputlinecount += 1
+                    signals_bool = 0
             
-                for i,items in enumerate(values_list):
-                    if aggregated_values_list[i] != "" and signalactive_list[i] == False:
-                        signalactive_list[i] = True
-                    values_list[i] = []
-                    aggregated_values_list[i] = ''
-
+                    for i,items in enumerate(values_list):
+                        if aggregated_values_list[i] != "" and signalactive_list[i] == False:
+                            signalactive_list[i] = True
+                        values_list[i] = []
+                        aggregated_values_list[i] = ''
+            except:
+                print("invalidated line observed: '%s'"% (row[:-1]))
     logfile.close()
 inputfile.close()
 
