@@ -30,6 +30,7 @@ signalactive_list = []
 signals_bool = 0
 dps_list = [3]
 dpsbase = 3
+loggingbase = 1
 frequency = 100
 starttime = float(0)
 lastwritetime = float(0)
@@ -72,22 +73,30 @@ with open (logfilename, "r",encoding="utf8") as inputfile:
                         signalcomment = frameID.signals[i].comment
                         signalminimum = frameID.signals[i].minimum
                         signalmaximum = frameID.signals[i].maximum
-                        signalList.append(signalname)
-                        displaySignalList.append(modsignalname)
-                        signalMin.append(signalminimum)
-                        signalMax.append(signalmaximum)
-                        if signalunit != None:
-                            signalUnit.append(signalunit)
-                        else:
-                            signalUnit.append('')
                         if signalcomment != None:
                             try:
-                                dps = int(re.findall("DPS = (\d{2}|\d{1})",signalcomment)[0])
+                                log = int(re.findall("LOG = (d{1})",signalcomment)[0])
                             except:
-                                dps = dpsbase
+                                log = loggingbase
                         else:
-                            dps = dpsbase
-                        dps_list.append(dps)
+                            log = loggingbase
+                        if log >=1:
+                            signalList.append(signalname)
+                            displaySignalList.append(modsignalname)
+                            signalMin.append(signalminimum)
+                            signalMax.append(signalmaximum)
+                            if signalunit != None:
+                                signalUnit.append(signalunit)
+                            else:
+                                signalUnit.append('')
+                            if signalcomment != None:
+                                try:
+                                    dps = int(re.findall("DPS = (\d{2}|\d{1})",signalcomment)[0])
+                                except:
+                                    dps = dpsbase
+                            else:
+                                dps = dpsbase
+                            dps_list.append(dps)
 
         writecsv.writerow(displaySignalList)
         writecsv.writerow(signalUnit)
