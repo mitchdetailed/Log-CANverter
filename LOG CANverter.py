@@ -126,7 +126,7 @@ with open (logfilename, "r",encoding="utf8") as inputfile:
                     for (key, value) in decoded_msg.items():
                         if key in signalList:
                             indexval = signalList.index(key)
-                            if signalMin[indexval] == None or value > signalMin[indexval] and signalMax[indexval] == None or value < signalMax[indexval]:
+                            if (signalMin[indexval] == None or value >= signalMin[indexval]) and (signalMax[indexval] == None or value <= signalMax[indexval]) or (signalMin[indexval] == 0 and signalMax[indexval] == 0):
                                 if dps_list[indexval] != None:
                                     try:
                                         value = round(float(value),dps_list[indexval])
