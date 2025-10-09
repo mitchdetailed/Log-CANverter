@@ -52,7 +52,7 @@ with open (logfilename, "r",encoding="utf8") as inputfile:
 
     with open(tempfile, "w", newline='') as logfile:
         writecsv = csv.writer(logfile, quoting=csv.QUOTE_ALL, delimiter=",")
-        db = cantools.database.load_file(dbcfilename)
+        db = cantools.database.load_file(dbcfilename)  # type: ignore
         raw_dbc = db.messages
         for iterable in raw_dbc:
             listmsgs = str(iterable).split(',')
@@ -75,7 +75,7 @@ with open (logfilename, "r",encoding="utf8") as inputfile:
                         signalmaximum = frameID.signals[i].maximum
                         if signalcomment != None:
                             try:
-                                log = int(re.findall("LOG = (d{1})",signalcomment)[0])
+                                log = int(re.findall(r"LOG = (\d{1})",signalcomment)[0])
                             except:
                                 log = loggingbase
                         else:
@@ -91,7 +91,7 @@ with open (logfilename, "r",encoding="utf8") as inputfile:
                                 signalUnit.append('')
                             if signalcomment != None:
                                 try:
-                                    dps = int(re.findall("DPS = (\d{2}|\d{1})",signalcomment)[0])
+                                    dps = int(re.findall(r"DPS = (\d{2}|\d{1})",signalcomment)[0])
                                 except:
                                     dps = dpsbase
                             else:
@@ -110,35 +110,38 @@ with open (logfilename, "r",encoding="utf8") as inputfile:
         linePattern = re.compile(r"\((\d+.\d+)\)\s+[^\s]+\s+([0-9A-F#]{3}|[0-9A-F#]{8})#([0-9A-F]+)")
         for row in tqdm(inputfile,desc= "Lines", total = numlines,unit = " Lines"):
             try:
-                tokens = linePattern.search(row).groups()
-                timestamp = float(tokens[0])
-                arbitration_id = int(tokens[1],16)
-                data = bytearray.fromhex(tokens[2])
-                if validate_decode() == True:
-                    signals_bool = 1
-                    if starttime == 0:
-                        starttime = timestamp
-                        lastwritetime = timestamp
-                        timestamp = 0
-                    else:
-                        timestamp = (timestamp - starttime)
-                    decoded_msg = db.decode_message(arbitration_id, data, decode_choices=False) 
-                    for (key, value) in decoded_msg.items():
-                        if key in signalList:
-                            indexval = signalList.index(key)
-                            if (signalMin[indexval] == None or value >= signalMin[indexval]) and (signalMax[indexval] == None or value <= signalMax[indexval]) or (signalMin[indexval] == 0 and signalMax[indexval] == 0):
-                                if dps_list[indexval] != None:
-                                    try:
-                                        value = round(float(value),dps_list[indexval])
+                match = linePattern.search(row)
+                if match:
+                    tokens = match.groups()
+                    timestamp = float(tokens[0])
+                    arbitration_id = int(tokens[1],16)
+                    data = bytearray.fromhex(tokens[2])
+                    if validate_decode() == True:
+                        signals_bool = 1
+                        if starttime == 0:
+                            starttime = timestamp
+                            lastwritetime = timestamp
+                            timestamp = 0
+                        else:
+                            timestamp = (timestamp - starttime)
+                        decoded_msg = db.decode_message(arbitration_id, data, decode_choices=False) 
+                        for (key, value) in decoded_msg.items():
+                            if key in signalList:
+                                indexval = signalList.index(key)
+                                if (signalMin[indexval] == None or value >= signalMin[indexval]) and (signalMax[indexval] == None or value <= signalMax[indexval]) or (signalMin[indexval] == 0 and signalMax[indexval] == 0):
+                                    if dps_list[indexval] != None:
                                         try:
-                                            if int(value) == float(value):
-                                                value = int(value)
+                                            value = round(float(value),dps_list[indexval])
+                                            try:
+                                                if int(value) == float(value):
+                                                    value = int(value)
+                                            except:
+                                                pass
                                         except:
                                             pass
-                                    except:
-                                        pass
-                                values_list[indexval].append(value)
-                if (timestamp - lastwritetime >= (1/frequency)) and (signals_bool == 1) :
+                                    values_list[indexval].append(value)
+                    if (timestamp - lastwritetime >= (1/frequency)) and (signals_bool == 1) :
+                        lastwritetime = timestamp
                     lastwritetime = timestamp
                     for i, items in enumerate(values_list):
                         if len(values_list[i]) > 0:
